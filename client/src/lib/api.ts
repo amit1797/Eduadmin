@@ -78,6 +78,20 @@ export const superAdminApi = {
   getSchools: () => api.get<any[]>("/api/super-admin/schools"),
   
   createSchool: (school: any) => api.post("/api/super-admin/schools", school),
+  
+  deleteSchool: (schoolId: number) => api.delete(`/api/super-admin/schools/${schoolId}`),
+  
+  onboardSchool: (data: any) => api.post("/api/super-admin/onboard-school", data),
+  
+  getUserManagement: () => api.get<any[]>("/api/super-admin/users"),
+  
+  getAnalytics: () => api.get<any>("/api/super-admin/analytics"),
+  
+  getSubscriptions: () => api.get<any[]>("/api/super-admin/subscriptions"),
+  
+  getSettings: () => api.get<any>("/api/super-admin/settings"),
+  
+  updateSettings: (settings: any) => api.put("/api/super-admin/settings", settings),
 };
 
 // School API

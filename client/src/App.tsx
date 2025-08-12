@@ -7,6 +7,12 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import SuperAdminDashboard from "@/pages/super-admin/dashboard";
+import SuperAdminSchools from "@/pages/super-admin/schools";
+import SuperAdminUsers from "@/pages/super-admin/users";
+import SuperAdminAnalytics from "@/pages/super-admin/analytics";
+import SuperAdminSubscriptions from "@/pages/super-admin/subscriptions";
+import SuperAdminSettings from "@/pages/super-admin/settings";
+import SuperAdminOnboarding from "@/pages/super-admin/onboarding";
 import SchoolAdminDashboard from "@/pages/school-admin/dashboard";
 import TeacherDashboard from "@/pages/teacher/dashboard";
 import StudentManagement from "@/pages/student-management";
@@ -74,6 +80,42 @@ function Router() {
       <Route path="/super-admin/dashboard">
         <ProtectedRoute roles={["super_admin"]}>
           <SuperAdminDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/super-admin/schools">
+        <ProtectedRoute roles={["super_admin"]}>
+          <SuperAdminSchools />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/super-admin/users">
+        <ProtectedRoute roles={["super_admin"]}>
+          <SuperAdminUsers />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/super-admin/analytics">
+        <ProtectedRoute roles={["super_admin"]}>
+          <SuperAdminAnalytics />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/super-admin/subscriptions">
+        <ProtectedRoute roles={["super_admin"]}>
+          <SuperAdminSubscriptions />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/super-admin/settings">
+        <ProtectedRoute roles={["super_admin"]}>
+          <SuperAdminSettings />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/super-admin/onboarding">
+        <ProtectedRoute roles={["super_admin"]}>
+          <SuperAdminOnboarding />
         </ProtectedRoute>
       </Route>
 

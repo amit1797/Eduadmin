@@ -87,9 +87,9 @@ export function Sidebar({ userRole, schoolId }: SidebarProps) {
               return (
                 <li key={item.href}>
                   <Link href={item.href}>
-                    <a 
+                    <span 
                       className={cn(
-                        "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors",
+                        "flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors cursor-pointer",
                         isActive 
                           ? "bg-blue-50 border-r-3 border-blue-600 text-blue-600" 
                           : "text-gray-700 hover:bg-blue-50 hover:border-r-3 hover:border-blue-600"
@@ -98,7 +98,7 @@ export function Sidebar({ userRole, schoolId }: SidebarProps) {
                     >
                       <item.icon className="mr-3 w-5 h-5" />
                       {item.label}
-                    </a>
+                    </span>
                   </Link>
                 </li>
               );
