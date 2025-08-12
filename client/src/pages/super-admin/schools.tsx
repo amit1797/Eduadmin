@@ -13,11 +13,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Building2, Search, Plus, Edit, Eye, Trash2, Calendar, Users, DollarSign } from "lucide-react";
+import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function SchoolsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedSchool, setSelectedSchool] = useState<any>(null);
@@ -87,7 +89,7 @@ export default function SchoolsPage() {
         title="Schools Management"
         showAddButton
         addButtonText="Add School"
-        onAddClick={() => {/* TODO: Navigate to onboarding */}}
+        onAddClick={() => setLocation("/super-admin/school-onboarding")}
       />
       
       <div className="flex">

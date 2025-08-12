@@ -13,6 +13,7 @@ import SuperAdminAnalytics from "@/pages/super-admin/analytics";
 import SuperAdminSubscriptions from "@/pages/super-admin/subscriptions";
 import SuperAdminSettings from "@/pages/super-admin/settings";
 import SuperAdminOnboarding from "@/pages/super-admin/onboarding";
+import SuperAdminSchoolOnboarding from "@/pages/super-admin/school-onboarding";
 import SchoolAdminDashboard from "@/pages/school-admin/dashboard";
 import TeacherDashboard from "@/pages/teacher/dashboard";
 import StudentManagement from "@/pages/student-management";
@@ -116,6 +117,12 @@ function Router() {
       <Route path="/super-admin/onboarding">
         <ProtectedRoute roles={["super_admin"]}>
           <SuperAdminOnboarding />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/super-admin/school-onboarding">
+        <ProtectedRoute roles={["super_admin"]}>
+          <SuperAdminSchoolOnboarding />
         </ProtectedRoute>
       </Route>
 

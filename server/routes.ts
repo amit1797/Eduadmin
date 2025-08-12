@@ -105,6 +105,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/super-admin/onboard-school", authenticateToken, requireRole(["super_admin"]), async (req: AuthRequest, res) => {
+    try {
+      const { basicDetails, documents, modules, configuration, dataUpload } = req.body;
+      
+      // Create school record
+      const school = await storage.createSchool({
+        name: basicDetails.name,
+        code: basicDetails.code,
+        address: basicDetails.address,
+        city: basicDetails.city,
+        state: basicDetails.state,
+        pincode: basicDetails.pincode,
+        phone: basicDetails.phone,
+        email: basicDetails.email,
+        website: basicDetails.website,
+        principalName: basicDetails.principalName,
+        principalEmail: basicDetails.principalEmail,
+        principalPhone: basicDetails.principalPhone,
+        establishedYear: parseInt(basicDetails.establishedYear),
+        schoolType: basicDetails.schoolType,
+        board: basicDetails.board,
+        description: basicDetails.description,
+        enabledModules: [...modules.coreModules, ...modules.optionalModules],
+        status: "active"
+      });
+
+      // Create principal user account
+      const hashedPassword = hashPassword("principal123"); // Default password
+      const principalUser = await storage.createUser({
+        email: basicDetails.principalEmail,
+        password: hashedPassword,
+        firstName: basicDetails.principalName.split(' ')[0],
+        lastName: basicDetails.principalName.split(' ').slice(1).join(' '),
+        role: "school_admin",
+        schoolId: school.id,
+        phone: basicDetails.principalPhone,
+        status: "active"
+      });
+
+      await storage.logActivity({
+        userId: req.user!.id,
+        action: "create",
+        resource: "school",
+        resourceId: school.id,
+        newValues: { basicDetails, modules, configuration }
+      });
+
+      res.status(201).json({ 
+        school, 
+        principalUser,
+        message: "School onboarded successfully" 
+      });
+    } catch (error) {
+      console.error("School onboarding error:", error);
+      res.status(500).json({ message: "Failed to onboard school" });
+    }
+  });
+
   app.post("/api/super-admin/schools", authenticateToken, requireRole(["super_admin"]), async (req: AuthRequest, res) => {
     try {
       const schoolData = req.body;
