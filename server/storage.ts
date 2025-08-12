@@ -6,7 +6,7 @@ import {
   type InsertClass, type InsertAttendance, type InsertEvent, type AuditLog
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, like, or } from "drizzle-orm";
+import { eq, and, desc, like, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Schools

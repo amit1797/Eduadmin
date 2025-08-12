@@ -1,6 +1,34 @@
 # Overview
 
-This is a comprehensive school management system built with React (frontend) and Express.js (backend). The application provides role-based access control for different user types including super admins, school admins, teachers, students, and parents. It features modular functionality covering student management, class management, attendance tracking, academic records, and administrative operations.
+EduManage Pro is a comprehensive school management system built with React (frontend) and Express.js (backend). The application provides role-based access control for different user types including super admins, school admins, sub school admins, teachers, students, and parents. It features modular functionality covering student management, class management, attendance tracking, academic records, and administrative operations.
+
+## Recent Updates
+
+**Database & Seed Data (August 12, 2025)**
+- Comprehensive seed data added with 3 schools, multiple user roles, and realistic test data
+- Complete PostgreSQL schema with 12 tables including users, schools, students, teachers, classes, attendance, events, and audit logs
+- Role-based permissions system implemented with granular CRUD controls
+- Multi-school architecture supporting school-specific module configuration
+
+## Test Data Available
+
+The system includes comprehensive seed data for testing all functionality:
+
+### Test Accounts
+- **Super Admin**: superadmin@edumanage.com / admin123 (no school code needed)
+- **School Admin**: admin@sunriseschool.edu / admin123 / SPS001
+- **Teacher**: john.smith@sunriseschool.edu / teacher123 / SPS001  
+- **Student**: alex.johnson@student.sunriseschool.edu / student123 / SPS001
+- **Parent**: robert.johnson@email.com / parent123 / SPS001
+
+### Sample Data Includes
+- 3 schools with enabled core modules
+- 4 teachers with different specializations
+- 6 students across multiple grades (9A, 9B, 10A, 10B)
+- 3 parent accounts linked to students
+- Attendance records for testing
+- Scheduled events and audit logs
+- Subject assignments and class relationships
 
 # User Preferences
 
