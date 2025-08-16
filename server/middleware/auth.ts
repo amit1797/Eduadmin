@@ -85,3 +85,44 @@ export function requireSchoolAccess(req: AuthRequest, res: Response, next: NextF
 
   next();
 }
+
+export function requireModule(moduleName: string) {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Authentication required" });
+
+      // Super admin bypasses module checks
+      if (req.user.role === "super_admin") return next();
+
+      const schoolId = req.params.schoolId || req.body.schoolId || req.query.schoolId;
+      if (!schoolId) return res.status(400).json({ message: "schoolId is required" });
+
+      const modules = await storage.getEnabledModules(String(schoolId));
+      if (!modules.includes(moduleName)) {
+        return res.status(403).json({ message: `Module ${moduleName} is not enabled for this school` });
+      }
+      next();
+    } catch (e) {
+      return res.status(500).json({ message: "Module check failed" });
+    }
+  };
+}
+
+export function requirePermission(moduleName: string, permission: "create" | "read" | "update" | "delete") {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) return res.status(401).json({ message: "Authentication required" });
+
+      // Super admin bypasses permission checks
+      if (req.user.role === "super_admin") return next();
+
+      const allowed = await storage.isPermissionAllowed(req.user.role, moduleName, permission);
+      if (!allowed) {
+        return res.status(403).json({ message: `Missing permission ${permission} on module ${moduleName}` });
+      }
+      next();
+    } catch (e) {
+      return res.status(500).json({ message: "Permission check failed" });
+    }
+  };
+}

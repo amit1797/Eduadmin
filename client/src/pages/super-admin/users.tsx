@@ -37,7 +37,8 @@ export default function UsersManagement() {
       user.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    const matchesSchool = schoolFilter === "all" || user.school_id === parseInt(schoolFilter);
+    // school_id is a string UUID; compare as string
+    const matchesSchool = schoolFilter === "all" || user.school_id === schoolFilter;
     return matchesSearch && matchesRole && matchesSchool;
   }) || [];
 

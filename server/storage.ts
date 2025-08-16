@@ -1,12 +1,10 @@
-import { 
-  schools, users, students, teachers, classes, attendance, subjects, 
-  classSubjects, events, auditLogs, schoolModules, rolePermissions,
+import {
   type School, type User, type Student, type Teacher, type Class,
   type InsertSchool, type InsertUser, type InsertStudent, type InsertTeacher,
-  type InsertClass, type InsertAttendance, type InsertEvent, type AuditLog
+  type InsertClass, type InsertAttendance, type InsertEvent, type AuditLog,
+  type Subject, type InsertSubject, type ClassSubject, type InsertClassSubject
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, and, desc, like, or, sql } from "drizzle-orm";
+import * as storageModules from "./storage/modules";
 
 export interface IStorage {
   // Schools
@@ -20,6 +18,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUsersBySchool(schoolId: string): Promise<User[]>;
+  getAllUsers(): Promise<User[]>; // Added getAllUsers() to IStorage
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
 
@@ -29,27 +28,46 @@ export interface IStorage {
   getStudentsByClass(classId: string): Promise<(Student & { user: User })[]>;
   createStudent(student: InsertStudent): Promise<Student>;
   updateStudent(id: string, student: Partial<InsertStudent>): Promise<Student>;
+  deleteStudent(id: string): Promise<void>;
 
   // Teachers
   getTeacher(id: string): Promise<(Teacher & { user: User }) | undefined>;
   getTeachersBySchool(schoolId: string): Promise<(Teacher & { user: User })[]>;
   createTeacher(teacher: InsertTeacher): Promise<Teacher>;
   updateTeacher(id: string, teacher: Partial<InsertTeacher>): Promise<Teacher>;
+  deleteTeacher(id: string): Promise<void>;
 
   // Classes
   getClass(id: string): Promise<Class | undefined>;
   getClassesBySchool(schoolId: string): Promise<Class[]>;
   createClass(classData: InsertClass): Promise<Class>;
   updateClass(id: string, classData: Partial<InsertClass>): Promise<Class>;
+  deleteClass(id: string): Promise<void>;
+
+  // Subjects
+  getSubject(id: string): Promise<Subject | undefined>;
+  getSubjectsBySchool(schoolId: string): Promise<Subject[]>;
+  createSubject(subject: InsertSubject): Promise<Subject>;
+  updateSubject(id: string, subject: Partial<InsertSubject>): Promise<Subject>;
+  deleteSubject(id: string): Promise<void>;
+
+  // Class-Subjects (assignments)
+  getClassSubjects(classId: string): Promise<(ClassSubject & { subject: Subject; teacher?: { id: string; userId: string } })[]>;
+  assignSubjectToClass(data: InsertClassSubject): Promise<ClassSubject>;
+  unassignSubjectFromClass(id: string): Promise<void>;
 
   // Attendance
   markAttendance(attendance: InsertAttendance): Promise<void>;
   getAttendanceByClass(classId: string, date: Date): Promise<any[]>;
+  getAttendanceByStudent(studentId: string): Promise<any[]>;
   getAttendanceStats(schoolId: string): Promise<{ totalPresent: number; totalAbsent: number; percentage: number }>;
 
   // Events
   getEventsBySchool(schoolId: string): Promise<any[]>;
+  getEvent(id: string): Promise<any | undefined>;
   createEvent(event: InsertEvent): Promise<any>;
+  updateEvent(id: string, event: Partial<InsertEvent>): Promise<any>;
+  deleteEvent(id: string): Promise<void>;
 
   // Audit Logs
   logActivity(log: {
@@ -79,247 +97,190 @@ export interface IStorage {
     monthlyRevenue: number;
     supportTickets: number;
   }>;
+
+  // RBAC & Modules
+  getEnabledModules(schoolId: string): Promise<string[]>;
+  isPermissionAllowed(role: string, module: string, permission: string): Promise<boolean>;
+  setSchoolModules(schoolId: string, modules: string[], enabled?: boolean): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
   async getSchool(id: string): Promise<School | undefined> {
-    const [school] = await db.select().from(schools).where(eq(schools.id, id));
-    return school;
+    return storageModules.schools.getSchool(id);
   }
 
   async getSchoolByCode(code: string): Promise<School | undefined> {
-    const [school] = await db.select().from(schools).where(eq(schools.code, code));
-    return school;
+    return storageModules.schools.getSchoolByCode(code);
   }
 
   async createSchool(school: InsertSchool): Promise<School> {
-    const [newSchool] = await db.insert(schools).values(school).returning();
-    return newSchool;
+    return storageModules.schools.createSchool(school);
   }
 
   async updateSchool(id: string, school: Partial<InsertSchool>): Promise<School> {
-    const [updatedSchool] = await db.update(schools)
-      .set({ ...school, updatedAt: new Date() })
-      .where(eq(schools.id, id))
-      .returning();
-    return updatedSchool;
+    return storageModules.schools.updateSchool(id, school);
   }
 
   async getAllSchools(): Promise<School[]> {
-    return await db.select().from(schools).orderBy(desc(schools.createdAt));
+    return storageModules.schools.getAllSchools();
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return storageModules.users.getUser(id);
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
+    return storageModules.users.getUserByEmail(email);
   }
 
   async getUsersBySchool(schoolId: string): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.schoolId, schoolId));
+    return storageModules.users.getUsersBySchool(schoolId);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return storageModules.users.getAllUsers();
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
-    return newUser;
+    return storageModules.users.createUser(user);
   }
 
   async updateUser(id: string, user: Partial<InsertUser>): Promise<User> {
-    const [updatedUser] = await db.update(users)
-      .set({ ...user, updatedAt: new Date() })
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
+    return storageModules.users.updateUser(id, user);
   }
 
   async getStudent(id: string): Promise<(Student & { user: User; class?: Class }) | undefined> {
-    const result = await db
-      .select()
-      .from(students)
-      .leftJoin(users, eq(students.userId, users.id))
-      .leftJoin(classes, eq(students.classId, classes.id))
-      .where(eq(students.id, id));
-
-    if (result.length === 0 || !result[0].users) return undefined;
-
-    return {
-      ...result[0].students,
-      user: result[0].users,
-      class: result[0].classes || undefined
-    };
+    return storageModules.students.getStudent(id);
   }
 
   async getStudentsBySchool(schoolId: string): Promise<(Student & { user: User; class?: Class })[]> {
-    const result = await db
-      .select()
-      .from(students)
-      .innerJoin(users, eq(students.userId, users.id))
-      .leftJoin(classes, eq(students.classId, classes.id))
-      .where(eq(users.schoolId, schoolId))
-      .orderBy(desc(students.createdAt));
-
-    return result.map(row => ({
-      ...row.students,
-      user: row.users,
-      class: row.classes || undefined
-    }));
+    return storageModules.students.getStudentsBySchool(schoolId);
   }
 
   async getStudentsByClass(classId: string): Promise<(Student & { user: User })[]> {
-    const result = await db
-      .select()
-      .from(students)
-      .innerJoin(users, eq(students.userId, users.id))
-      .where(eq(students.classId, classId));
-
-    return result.map(row => ({
-      ...row.students,
-      user: row.users
-    }));
+    return storageModules.students.getStudentsByClass(classId);
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
-    const [newStudent] = await db.insert(students).values(student).returning();
-    return newStudent;
+    return storageModules.students.createStudent(student);
   }
 
   async updateStudent(id: string, student: Partial<InsertStudent>): Promise<Student> {
-    const [updatedStudent] = await db.update(students)
-      .set({ ...student, updatedAt: new Date() })
-      .where(eq(students.id, id))
-      .returning();
-    return updatedStudent;
+    return storageModules.students.updateStudent(id, student);
+  }
+
+  async deleteStudent(id: string): Promise<void> {
+    return storageModules.students.deleteStudent(id);
   }
 
   async getTeacher(id: string): Promise<(Teacher & { user: User }) | undefined> {
-    const result = await db
-      .select()
-      .from(teachers)
-      .innerJoin(users, eq(teachers.userId, users.id))
-      .where(eq(teachers.id, id));
-
-    if (result.length === 0) return undefined;
-
-    return {
-      ...result[0].teachers,
-      user: result[0].users
-    };
+    return storageModules.teachers.getTeacher(id);
   }
 
   async getTeachersBySchool(schoolId: string): Promise<(Teacher & { user: User })[]> {
-    const result = await db
-      .select()
-      .from(teachers)
-      .innerJoin(users, eq(teachers.userId, users.id))
-      .where(eq(users.schoolId, schoolId))
-      .orderBy(desc(teachers.createdAt));
-
-    return result.map(row => ({
-      ...row.teachers,
-      user: row.users
-    }));
+    return storageModules.teachers.getTeachersBySchool(schoolId);
   }
 
   async createTeacher(teacher: InsertTeacher): Promise<Teacher> {
-    const [newTeacher] = await db.insert(teachers).values(teacher).returning();
-    return newTeacher;
+    return storageModules.teachers.createTeacher(teacher);
   }
 
   async updateTeacher(id: string, teacher: Partial<InsertTeacher>): Promise<Teacher> {
-    const [updatedTeacher] = await db.update(teachers)
-      .set({ ...teacher, updatedAt: new Date() })
-      .where(eq(teachers.id, id))
-      .returning();
-    return updatedTeacher;
+    return storageModules.teachers.updateTeacher(id, teacher);
+  }
+
+  async deleteTeacher(id: string): Promise<void> {
+    return storageModules.teachers.deleteTeacher(id);
   }
 
   async getClass(id: string): Promise<Class | undefined> {
-    const [classData] = await db.select().from(classes).where(eq(classes.id, id));
-    return classData;
+    return storageModules.classes.getClass(id);
   }
 
   async getClassesBySchool(schoolId: string): Promise<Class[]> {
-    return await db.select().from(classes).where(eq(classes.schoolId, schoolId));
+    return storageModules.classes.getClassesBySchool(schoolId);
   }
 
   async createClass(classData: InsertClass): Promise<Class> {
-    const [newClass] = await db.insert(classes).values(classData).returning();
-    return newClass;
+    return storageModules.classes.createClass(classData);
   }
 
   async updateClass(id: string, classData: Partial<InsertClass>): Promise<Class> {
-    const [updatedClass] = await db.update(classes)
-      .set({ ...classData, updatedAt: new Date() })
-      .where(eq(classes.id, id))
-      .returning();
-    return updatedClass;
+    return storageModules.classes.updateClass(id, classData);
+  }
+
+  async deleteClass(id: string): Promise<void> {
+    return storageModules.classes.deleteClass(id);
+  }
+
+  // Subjects
+  async getSubject(id: string): Promise<Subject | undefined> {
+    return storageModules.subjects.getSubject(id);
+  }
+
+  async getSubjectsBySchool(schoolId: string): Promise<Subject[]> {
+    return storageModules.subjects.getSubjectsBySchool(schoolId);
+  }
+
+  async createSubject(subject: InsertSubject): Promise<Subject> {
+    return storageModules.subjects.createSubject(subject);
+  }
+
+  async updateSubject(id: string, subject: Partial<InsertSubject>): Promise<Subject> {
+    return storageModules.subjects.updateSubject(id, subject);
+  }
+
+  async deleteSubject(id: string): Promise<void> {
+    return storageModules.subjects.deleteSubject(id);
+  }
+
+  // Class-Subjects
+  async getClassSubjects(classId: string): Promise<(ClassSubject & { subject: Subject; teacher?: { id: string; userId: string } })[]> {
+    return storageModules.classSubjects.getClassSubjects(classId);
+  }
+
+  async assignSubjectToClass(data: InsertClassSubject): Promise<ClassSubject> {
+    return storageModules.classSubjects.assignSubjectToClass(data);
+  }
+
+  async unassignSubjectFromClass(id: string): Promise<void> {
+    return storageModules.classSubjects.unassignSubjectFromClass(id);
   }
 
   async markAttendance(attendanceData: InsertAttendance): Promise<void> {
-    await db.insert(attendance).values(attendanceData);
+    return storageModules.attendance.markAttendance(attendanceData);
   }
 
   async getAttendanceByClass(classId: string, date: Date): Promise<any[]> {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    return storageModules.attendance.getAttendanceByClass(classId, date);
+  }
 
-    const result = await db
-      .select()
-      .from(attendance)
-      .innerJoin(students, eq(attendance.studentId, students.id))
-      .innerJoin(users, eq(students.userId, users.id))
-      .where(
-        and(
-          eq(attendance.classId, classId),
-          and(
-            sql`${attendance.date} >= ${startOfDay}`,
-            sql`${attendance.date} <= ${endOfDay}`
-          )
-        )
-      );
-
-    return result.map(row => ({
-      ...row.attendance,
-      student: {
-        ...row.students,
-        user: row.users
-      }
-    }));
+  async getAttendanceByStudent(studentId: string): Promise<any[]> {
+    return storageModules.attendance.getAttendanceByStudent(studentId);
   }
 
   async getAttendanceStats(schoolId: string): Promise<{ totalPresent: number; totalAbsent: number; percentage: number }> {
-    // This would need more complex queries in a real implementation
-    // For now, returning mock data structure
-    return {
-      totalPresent: 0,
-      totalAbsent: 0,
-      percentage: 0
-    };
+    return storageModules.attendance.getAttendanceStats(schoolId);
   }
 
   async getEventsBySchool(schoolId: string): Promise<any[]> {
-    const result = await db
-      .select()
-      .from(events)
-      .innerJoin(users, eq(events.createdBy, users.id))
-      .where(eq(events.schoolId, schoolId))
-      .orderBy(desc(events.createdAt));
+    return storageModules.events.getEventsBySchool(schoolId);
+  }
 
-    return result.map(row => ({
-      ...row.events,
-      createdBy: row.users
-    }));
+  async getEvent(id: string): Promise<any | undefined> {
+    return storageModules.events.getEvent(id);
   }
 
   async createEvent(event: InsertEvent): Promise<any> {
-    const [newEvent] = await db.insert(events).values(event).returning();
-    return newEvent;
+    return storageModules.events.createEvent(event);
+  }
+
+  async updateEvent(id: string, event: Partial<InsertEvent>): Promise<any> {
+    return storageModules.events.updateEvent(id, event);
+  }
+
+  async deleteEvent(id: string): Promise<void> {
+    return storageModules.events.deleteEvent(id);
   }
 
   async logActivity(log: {
@@ -333,21 +294,11 @@ export class DatabaseStorage implements IStorage {
     ipAddress?: string;
     userAgent?: string;
   }): Promise<void> {
-    await db.insert(auditLogs).values({
-      ...log,
-      oldValues: log.oldValues ? JSON.stringify(log.oldValues) : null,
-      newValues: log.newValues ? JSON.stringify(log.newValues) : null
-    });
+    return storageModules.audit.logActivity(log);
   }
 
   async getAuditLogs(schoolId?: string): Promise<AuditLog[]> {
-    const query = db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
-    
-    if (schoolId) {
-      return await query.where(eq(auditLogs.schoolId, schoolId));
-    }
-    
-    return await query;
+    return storageModules.audit.getAuditLogs(schoolId);
   }
 
   async getSchoolStats(schoolId: string): Promise<{
@@ -356,29 +307,7 @@ export class DatabaseStorage implements IStorage {
     totalClasses: number;
     todayAttendance: number;
   }> {
-    const [studentsCount] = await db
-      .select({ count: sql`count(*)` })
-      .from(students)
-      .innerJoin(users, eq(students.userId, users.id))
-      .where(eq(users.schoolId, schoolId));
-
-    const [teachersCount] = await db
-      .select({ count: sql`count(*)` })
-      .from(teachers)
-      .innerJoin(users, eq(teachers.userId, users.id))
-      .where(eq(users.schoolId, schoolId));
-
-    const [classesCount] = await db
-      .select({ count: sql`count(*)` })
-      .from(classes)
-      .where(eq(classes.schoolId, schoolId));
-
-    return {
-      totalStudents: Number(studentsCount?.count) || 0,
-      totalTeachers: Number(teachersCount?.count) || 0,
-      totalClasses: Number(classesCount?.count) || 0,
-      todayAttendance: 94.5
-    };
+    return storageModules.stats.getSchoolStats(schoolId);
   }
 
   async getSuperAdminStats(): Promise<{
@@ -387,21 +316,20 @@ export class DatabaseStorage implements IStorage {
     monthlyRevenue: number;
     supportTickets: number;
   }> {
-    const [schoolsCount] = await db
-      .select({ count: sql`count(*)` })
-      .from(schools);
+    return storageModules.stats.getSuperAdminStats();
+  }
 
-    const [activeSchools] = await db
-      .select({ count: sql`count(*)` })
-      .from(schools)
-      .where(eq(schools.status, "active"));
+  // RBAC & Modules
+  async getEnabledModules(schoolId: string): Promise<string[]> {
+    return storageModules.rbac.getEnabledModules(schoolId);
+  }
 
-    return {
-      totalSchools: Number(schoolsCount?.count) || 0,
-      activeLicenses: Number(activeSchools?.count) || 0,
-      monthlyRevenue: 89432,
-      supportTickets: 23
-    };
+  async isPermissionAllowed(roleName: string, moduleName: string, permissionName: string): Promise<boolean> {
+    return storageModules.rbac.isPermissionAllowed(roleName, moduleName, permissionName);
+  }
+
+  async setSchoolModules(schoolId: string, modules: string[], enabled: boolean = true): Promise<void> {
+    return storageModules.rbac.setSchoolModules(schoolId, modules, enabled);
   }
 }
 

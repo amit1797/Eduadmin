@@ -18,22 +18,29 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(AuthService.getUser());
 
-  const { isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["/api/auth/me"],
+    queryFn: authApi.getMe,
     enabled: !!AuthService.getToken() && !user,
     retry: false,
     staleTime: Infinity,
-    meta: {
-      onSuccess: (userData: AuthUser) => {
-        setUser(userData);
-        AuthService.setAuth({ token: AuthService.getToken()!, user: userData });
-      },
-      onError: () => {
-        AuthService.clearAuth();
-        setUser(null);
-      }
-    }
   });
+
+  // Handle success side-effects
+  useEffect(() => {
+    if (data) {
+      setUser(data);
+      AuthService.setAuth({ token: AuthService.getToken()!, user: data });
+    }
+  }, [data]);
+
+  // Handle error side-effects
+  useEffect(() => {
+    if (isError) {
+      AuthService.clearAuth();
+      setUser(null);
+    }
+  }, [isError]);
 
   const login = async (credentials: { email: string; password: string; schoolCode?: string }) => {
     const response = await authApi.login(credentials);

@@ -30,13 +30,10 @@ export function Sidebar({ userRole, schoolId }: SidebarProps) {
   const [location] = useLocation();
 
   const getSidebarItems = (): SidebarItem[] => {
-    const baseItems: SidebarItem[] = [
-      { icon: LayoutDashboard, label: "Dashboard", href: "/" }
-    ];
-
+    // Super Admin: fixed super admin namespace
     if (userRole === "super_admin") {
       return [
-        ...baseItems,
+        { icon: LayoutDashboard, label: "Dashboard", href: "/super-admin/dashboard" },
         { icon: Building2, label: "Schools Management", href: "/super-admin/schools" },
         { icon: Users, label: "User Management", href: "/super-admin/users" },
         { icon: Settings, label: "Modules Configuration", href: "/super-admin/modules" },
@@ -45,22 +42,24 @@ export function Sidebar({ userRole, schoolId }: SidebarProps) {
       ];
     }
 
+    // School Admins: dynamic school-scoped namespace
     if (userRole === "school_admin" || userRole === "sub_school_admin") {
+      const prefix = schoolId ? `/${schoolId}/admin` : "/school-admin";
       return [
-        ...baseItems,
-        { icon: Users, label: "Students", href: "/students" },
-        { icon: GraduationCap, label: "Teachers", href: "/teachers" },
-        { icon: BookOpen, label: "Classes", href: "/classes" },
-        { icon: ClipboardCheck, label: "Attendance", href: "/attendance" },
-        { icon: Award, label: "Academics", href: "/academics" },
-        { icon: Calendar, label: "Events", href: "/events" },
-        { icon: FileText, label: "Accounts", href: "/accounts" }
+        { icon: LayoutDashboard, label: "Dashboard", href: `${prefix}/dashboard` },
+        { icon: Users, label: "Students", href: `${prefix}/students` },
+        { icon: GraduationCap, label: "Teachers", href: `${prefix}/teachers` },
+        { icon: BookOpen, label: "Classes", href: `${prefix}/classes` },
+        { icon: ClipboardCheck, label: "Attendance", href: `${prefix}/attendance` },
+        { icon: Award, label: "Academics", href: `${prefix}/academics` },
+        { icon: Calendar, label: "Events", href: `${prefix}/events` },
+        { icon: FileText, label: "Accounts", href: `${prefix}/accounts` }
       ];
     }
 
     if (userRole === "teacher") {
       return [
-        ...baseItems,
+        { icon: LayoutDashboard, label: "Dashboard", href: "/teacher/dashboard" },
         { icon: BookOpen, label: "My Classes", href: "/teacher/classes" },
         { icon: Users, label: "Students", href: "/teacher/students" },
         { icon: ClipboardCheck, label: "Attendance", href: "/teacher/attendance" },
@@ -70,7 +69,10 @@ export function Sidebar({ userRole, schoolId }: SidebarProps) {
       ];
     }
 
-    return baseItems;
+    // Default minimal
+    return [
+      { icon: LayoutDashboard, label: "Dashboard", href: "/" }
+    ];
   };
 
   const sidebarItems = getSidebarItems();

@@ -1,3 +1,5 @@
+-- Ensure required extension for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;--> statement-breakpoint
 CREATE TYPE "public"."module" AS ENUM('student_management', 'teacher_management', 'class_management', 'academics_management', 'attendance_management', 'test_result_management', 'event_management', 'basic_accounts', 'notification_system', 'audit_system', 'library_management', 'transport_management', 'accounts_payroll', 'staff_management', 'advance_notification', 'branch_management');--> statement-breakpoint
 CREATE TYPE "public"."permission" AS ENUM('create', 'read', 'update', 'delete');--> statement-breakpoint
 CREATE TYPE "public"."role" AS ENUM('super_admin', 'school_admin', 'sub_school_admin', 'teacher', 'student', 'parent', 'accountant', 'librarian', 'transport_admin', 'hod', 'org_admin');--> statement-breakpoint

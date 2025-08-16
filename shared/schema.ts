@@ -296,6 +296,17 @@ export const insertEventSchema = createInsertSchema(events).omit({
   updatedAt: true
 });
 
+// Newly added insert schemas for Subjects and Class-Subjects
+export const insertSubjectSchema = createInsertSchema(subjects).omit({
+  id: true,
+  createdAt: true
+});
+
+export const insertClassSubjectSchema = createInsertSchema(classSubjects).omit({
+  id: true,
+  createdAt: true
+});
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -327,3 +338,16 @@ export type Event = typeof events.$inferSelect;
 export type LoginRequest = z.infer<typeof loginSchema>;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+// Newly added types for Subjects and Class-Subjects
+export type InsertSubject = z.infer<typeof insertSubjectSchema>;
+export type Subject = typeof subjects.$inferSelect;
+
+export type InsertClassSubject = z.infer<typeof insertClassSubjectSchema>;
+export type ClassSubject = typeof classSubjects.$inferSelect;
+
+// DTOs for class-subject assignment operations
+export const assignClassSubjectSchema = z.object({
+  subjectId: z.string().min(1),
+  teacherId: z.string().optional()
+});

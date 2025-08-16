@@ -1,0 +1,12 @@
+export * as schools from "./schools";
+export * as users from "./users";
+export * as students from "./students";
+export * as teachers from "./teachers";
+export * as classes from "./classes";
+export * as subjects from "./subjects";
+export * as classSubjects from "./classSubjects";
+export * as attendance from "./attendance";
+export * as events from "./events";
+export * as audit from "./audit";
+export * as rbac from "./rbac";
+export * as stats from "./stats";

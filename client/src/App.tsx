@@ -17,6 +17,7 @@ import SuperAdminSchoolOnboarding from "@/pages/super-admin/school-onboarding";
 import SchoolAdminDashboard from "@/pages/school-admin/dashboard";
 import TeacherDashboard from "@/pages/teacher/dashboard";
 import StudentManagement from "@/pages/student-management";
+import StudentDetails from "@/pages/student-details";
 
 function ProtectedRoute({ 
   children, 
@@ -65,7 +66,7 @@ function Router() {
                 return <Redirect to="/super-admin/dashboard" />;
               case "school_admin":
               case "sub_school_admin":
-                return <Redirect to="/school-admin/dashboard" />;
+                return <Redirect to={`/${user?.schoolId}/admin/dashboard`} />;
               case "teacher":
                 return <Redirect to="/teacher/dashboard" />;
               case "student":
@@ -126,16 +127,34 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* School Admin Routes */}
-      <Route path="/school-admin/dashboard">
+      {/* School Admin Routes (new dynamic) */}
+      <Route path="/:schoolId/admin/dashboard">
         <ProtectedRoute roles={["school_admin", "sub_school_admin"]}>
           <SchoolAdminDashboard />
         </ProtectedRoute>
       </Route>
 
-      <Route path="/students">
+      <Route path="/:schoolId/admin/students">
         <ProtectedRoute roles={["school_admin", "sub_school_admin", "teacher"]}>
           <StudentManagement />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/:schoolId/admin/students/:studentId">
+        <ProtectedRoute roles={["school_admin", "sub_school_admin", "teacher"]}>
+          <StudentDetails />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Legacy paths -> redirect to new scheme */}
+      <Route path="/school-admin/dashboard">
+        <ProtectedRoute roles={["school_admin", "sub_school_admin"]}>
+          {user ? <Redirect to={`/${user.schoolId}/admin/dashboard`} /> : <Redirect to="/login" />}
+        </ProtectedRoute>
+      </Route>
+      <Route path="/students">
+        <ProtectedRoute roles={["school_admin", "sub_school_admin", "teacher"]}>
+          {user ? <Redirect to={`/${user.schoolId}/admin/students`} /> : <Redirect to="/login" />}
         </ProtectedRoute>
       </Route>
 

@@ -4,6 +4,8 @@ import {
   classSubjects, events, auditLogs, schoolModules, rolePermissions 
 } from "@shared/schema";
 import { hashPassword } from "./middleware/auth";
+import { fileURLToPath } from "url";
+import path from "path";
 
 async function seedData() {
   console.log("🌱 Starting database seeding...");
@@ -58,12 +60,17 @@ async function seedData() {
 
     console.log("🏫 Created schools");
 
-    // 2. Enable modules for schools
-    const modulesList = [
-      "student_management", "teacher_management", "class_management", 
-      "academics_management", "attendance_management", "test_result_management",
-      "event_management", "basic_accounts", "notification_system", "audit_system"
-    ];
+    // 2. Enable modules for schools (align with onboarding defaults)
+    const defaultModules = [
+      "student_management",
+      "teacher_management",
+      "class_management",
+      "academics_management",
+      "attendance_management",
+      "event_management",
+      "audit_system"
+    ] as const;
+    const modulesList = defaultModules as readonly string[];
 
     for (const school of schoolsData) {
       for (const module of modulesList) {
@@ -659,46 +666,42 @@ async function seedData() {
 
     console.log("📋 Created audit logs");
 
-    // 14. Set up role permissions (basic permissions for demonstration)
-    const permissions = [
-      // Super Admin - all permissions on all modules
-      { role: "super_admin", module: "student_management", permission: "create" },
-      { role: "super_admin", module: "student_management", permission: "read" },
-      { role: "super_admin", module: "student_management", permission: "update" },
-      { role: "super_admin", module: "student_management", permission: "delete" },
-      
-      // School Admin - full permissions on school modules
-      { role: "school_admin", module: "student_management", permission: "create" },
-      { role: "school_admin", module: "student_management", permission: "read" },
-      { role: "school_admin", module: "student_management", permission: "update" },
-      { role: "school_admin", module: "student_management", permission: "delete" },
-      { role: "school_admin", module: "teacher_management", permission: "create" },
-      { role: "school_admin", module: "teacher_management", permission: "read" },
-      { role: "school_admin", module: "teacher_management", permission: "update" },
-      { role: "school_admin", module: "teacher_management", permission: "delete" },
-      
-      // Teacher - limited permissions
-      { role: "teacher", module: "student_management", permission: "read" },
-      { role: "teacher", module: "attendance_management", permission: "create" },
-      { role: "teacher", module: "attendance_management", permission: "read" },
-      { role: "teacher", module: "attendance_management", permission: "update" },
-      
-      // Student - read only permissions
-      { role: "student", module: "academics_management", permission: "read" },
-      { role: "student", module: "attendance_management", permission: "read" },
-      
-      // Parent - limited read permissions
-      { role: "parent", module: "student_management", permission: "read" },
-      { role: "parent", module: "attendance_management", permission: "read" }
-    ];
+    // 14. Set up role permissions aligned with modulesList and routes
+    const allCrud = ["create", "read", "update", "delete"] as const;
 
-    for (const perm of permissions) {
-      await db.insert(rolePermissions).values({
-        role: perm.role as any,
-        module: perm.module as any,
-        permission: perm.permission as any
-      });
+    // Super Admin: full on all default modules
+    for (const mod of modulesList) {
+      for (const perm of allCrud) {
+        await db.insert(rolePermissions).values({ role: "super_admin" as any, module: mod as any, permission: perm as any });
+      }
     }
+
+    // School Admin: full on operational modules, read on audit
+    const adminCrudModules = modulesList.filter((m) => m !== "audit_system");
+    for (const mod of adminCrudModules) {
+      for (const perm of allCrud) {
+        await db.insert(rolePermissions).values({ role: "school_admin" as any, module: mod as any, permission: perm as any });
+      }
+    }
+    await db.insert(rolePermissions).values({ role: "school_admin" as any, module: "audit_system" as any, permission: "read" as any });
+
+    // Teacher: read students, manage attendance, read academics and events
+    await db.insert(rolePermissions).values({ role: "teacher" as any, module: "student_management" as any, permission: "read" as any });
+    await db.insert(rolePermissions).values({ role: "teacher" as any, module: "academics_management" as any, permission: "read" as any });
+    for (const perm of ["create", "read", "update"] as const) {
+      await db.insert(rolePermissions).values({ role: "teacher" as any, module: "attendance_management" as any, permission: perm as any });
+    }
+    await db.insert(rolePermissions).values({ role: "teacher" as any, module: "event_management" as any, permission: "read" as any });
+
+    // Student: read academics, attendance, events
+    await db.insert(rolePermissions).values({ role: "student" as any, module: "academics_management" as any, permission: "read" as any });
+    await db.insert(rolePermissions).values({ role: "student" as any, module: "attendance_management" as any, permission: "read" as any });
+    await db.insert(rolePermissions).values({ role: "student" as any, module: "event_management" as any, permission: "read" as any });
+
+    // Parent: read student info, attendance, events
+    await db.insert(rolePermissions).values({ role: "parent" as any, module: "student_management" as any, permission: "read" as any });
+    await db.insert(rolePermissions).values({ role: "parent" as any, module: "attendance_management" as any, permission: "read" as any });
+    await db.insert(rolePermissions).values({ role: "parent" as any, module: "event_management" as any, permission: "read" as any });
 
     console.log("🔐 Set up role permissions");
 
@@ -736,8 +739,9 @@ async function seedData() {
   }
 }
 
-// Run seeding if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run seeding if this file is executed directly (robust across platforms and tsx/node ESM)
+const thisFile = fileURLToPath(import.meta.url);
+if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
   seedData()
     .then(() => {
       console.log("🎉 Seeding completed successfully!");

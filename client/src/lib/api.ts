@@ -1,5 +1,6 @@
 import { AuthService } from "./auth";
 import { queryClient } from "./queryClient";
+import { type LoginResponse, type AuthUser } from "./auth";
 
 class ApiClient {
   private baseURL = "";
@@ -61,9 +62,9 @@ export const api = new ApiClient();
 // Auth API
 export const authApi = {
   login: (credentials: { email: string; password: string; schoolCode?: string }) =>
-    api.post<{ token: string; user: any }>("/api/auth/login", credentials),
+    api.post<LoginResponse>("/api/auth/login", credentials),
   
-  getMe: () => api.get<any>("/api/auth/me"),
+  getMe: () => api.get<AuthUser>("/api/auth/me"),
 };
 
 // Super Admin API
@@ -104,6 +105,10 @@ export const schoolApi = {
   }>(`/api/schools/${schoolId}/stats`),
   
   getStudents: (schoolId: string) => api.get<any[]>(`/api/schools/${schoolId}/students`),
+  getStudent: (schoolId: string, studentId: string) => api.get<any>(`/api/schools/${schoolId}/students/${studentId}`),
+  getStudentAttendance: (schoolId: string, studentId: string) => api.get<any>(`/api/schools/${schoolId}/students/${studentId}/attendance`),
+  getStudentFees: (schoolId: string, studentId: string) => api.get<any>(`/api/schools/${schoolId}/students/${studentId}/fees`),
+  getStudentDocuments: (schoolId: string, studentId: string) => api.get<any[]>(`/api/schools/${schoolId}/students/${studentId}/documents`),
   
   createStudent: (schoolId: string, data: { userData: any; studentData: any }) =>
     api.post(`/api/schools/${schoolId}/students`, data),
