@@ -2,7 +2,8 @@ import {
   type School, type User, type Student, type Teacher, type Class,
   type InsertSchool, type InsertUser, type InsertStudent, type InsertTeacher,
   type InsertClass, type InsertAttendance, type InsertEvent, type AuditLog,
-  type Subject, type InsertSubject, type ClassSubject, type InsertClassSubject
+  type Subject, type InsertSubject, type ClassSubject, type InsertClassSubject,
+  type OnboardingDraft, type InsertOnboardingDraft
 } from "@shared/schema";
 import * as storageModules from "./storage/modules";
 
@@ -102,6 +103,14 @@ export interface IStorage {
   getEnabledModules(schoolId: string): Promise<string[]>;
   isPermissionAllowed(role: string, module: string, permission: string): Promise<boolean>;
   setSchoolModules(schoolId: string, modules: string[], enabled?: boolean): Promise<void>;
+
+  // Onboarding Drafts
+  createOnboardingDraft(draft: Partial<InsertOnboardingDraft>): Promise<OnboardingDraft>;
+  getOnboardingDraft(id: string): Promise<OnboardingDraft | undefined>;
+  listOnboardingDrafts(params?: { status?: string }): Promise<OnboardingDraft[]>;
+  updateOnboardingDraft(id: string, patch: Partial<InsertOnboardingDraft>): Promise<OnboardingDraft>;
+  finalizeOnboardingDraft(id: string): Promise<{ draft: OnboardingDraft; schoolId: string; invitedUserId?: string; inviteEmailSent?: boolean }>;
+  archiveOnboardingDraft(id: string): Promise<OnboardingDraft>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -330,6 +339,26 @@ export class DatabaseStorage implements IStorage {
 
   async setSchoolModules(schoolId: string, modules: string[], enabled: boolean = true): Promise<void> {
     return storageModules.rbac.setSchoolModules(schoolId, modules, enabled);
+  }
+
+  // Onboarding Drafts
+  async createOnboardingDraft(draft: Partial<InsertOnboardingDraft>): Promise<OnboardingDraft> {
+    return storageModules.onboardingDrafts.createDraft(draft as any);
+  }
+  async getOnboardingDraft(id: string): Promise<OnboardingDraft | undefined> {
+    return storageModules.onboardingDrafts.getDraft(id);
+  }
+  async listOnboardingDrafts(params?: { status?: string }): Promise<OnboardingDraft[]> {
+    return storageModules.onboardingDrafts.listDrafts(params);
+  }
+  async updateOnboardingDraft(id: string, patch: Partial<InsertOnboardingDraft>): Promise<OnboardingDraft> {
+    return storageModules.onboardingDrafts.updateDraft(id, patch as any);
+  }
+  async finalizeOnboardingDraft(id: string): Promise<{ draft: OnboardingDraft; schoolId: string; invitedUserId?: string; inviteEmailSent?: boolean }> {
+    return storageModules.onboardingDrafts.finalizeDraft(id);
+  }
+  async archiveOnboardingDraft(id: string): Promise<OnboardingDraft> {
+    return storageModules.onboardingDrafts.archiveDraft(id);
   }
 }
 

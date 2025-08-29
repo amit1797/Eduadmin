@@ -58,3 +58,18 @@ export const teacherRouter = Router({ mergeParams: true });
     }
   });
 
+  // Get single teacher by ID
+  teacherRouter.get("/teachers/:teacherId", authenticateToken, requireSchoolAccess, requireModule("teacher_management"), requirePermission("teacher_management", "read"), async (req, res) => {
+    try {
+      const { teacherId } = req.params;
+      const teacher = await storage.getTeacher(teacherId);
+      if (!teacher) {
+        return res.status(404).json({ message: "Teacher not found" });
+      }
+      return res.json(teacher);
+    } catch (error) {
+      console.error("Get teacher error:", error);
+      return res.status(500).json({ message: "Failed to fetch teacher" });
+    }
+  });
+

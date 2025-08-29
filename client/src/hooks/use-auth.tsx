@@ -49,9 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    AuthService.clearAuth();
-    setUser(null);
-    window.location.href = "/login";
+    // Call server to record logout, then clear local state and redirect
+    authApi.logout().finally(() => {
+      setUser(null);
+      window.location.href = "/login";
+    });
   };
 
   const hasRole = (role: string) => AuthService.hasRole(role);

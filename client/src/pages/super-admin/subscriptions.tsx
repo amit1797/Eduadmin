@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { CreditCard, Search, Plus, Edit, DollarSign, Calendar, Users, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/common/Pagination";
 
 export default function Subscriptions() {
   const { user } = useAuth();
@@ -20,11 +21,17 @@ export default function Subscriptions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ["/api/super-admin/subscriptions"],
     queryFn: () => superAdminApi.getSubscriptions()
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, planFilter]);
 
   const { data: schools } = useQuery({
     queryKey: ["/api/super-admin/schools"],
@@ -82,6 +89,9 @@ export default function Subscriptions() {
     const matchesPlan = planFilter === "all" || sub.plan.toLowerCase() === planFilter;
     return matchesSearch && matchesStatus && matchesPlan;
   });
+
+  const startIdx = (page - 1) * pageSize;
+  const pagedSubscriptions = filteredSubscriptions.slice(startIdx, startIdx + pageSize);
 
   if (isLoading) {
     return (
@@ -258,7 +268,7 @@ export default function Subscriptions() {
               <CardTitle>Subscriptions ({filteredSubscriptions.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="overflow-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -286,7 +296,7 @@ export default function Subscriptions() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredSubscriptions.map((subscription: any) => (
+                    {pagedSubscriptions.map((subscription: any) => (
                       <tr key={subscription.id} className="hover:bg-gray-50" data-testid={`subscription-row-${subscription.id}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -369,6 +379,17 @@ export default function Subscriptions() {
                   </tbody>
                 </table>
               </div>
+              {filteredSubscriptions.length > 0 && (
+                <div className="mt-4">
+                  <Pagination
+                    page={page}
+                    pageSize={pageSize}
+                    total={filteredSubscriptions.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 

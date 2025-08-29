@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -13,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { Users, Search, UserPlus, Edit, Trash2, Shield } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/common/Pagination";
 
 export default function UsersManagement() {
   const { user } = useAuth();
@@ -20,6 +22,8 @@ export default function UsersManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [schoolFilter, setSchoolFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["/api/super-admin/users"],
@@ -41,6 +45,14 @@ export default function UsersManagement() {
     const matchesSchool = schoolFilter === "all" || user.school_id === schoolFilter;
     return matchesSearch && matchesRole && matchesSchool;
   }) || [];
+
+  // Reset to first page when filters/search change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, roleFilter, schoolFilter]);
+
+  const startIdx = (page - 1) * pageSize;
+  const pagedUsers = filteredUsers.slice(startIdx, startIdx + pageSize);
 
   if (isLoading) {
     return (
@@ -211,7 +223,7 @@ export default function UsersManagement() {
               <CardTitle>Users ({filteredUsers.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="overflow-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -236,7 +248,7 @@ export default function UsersManagement() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredUsers.map((user: any) => {
+                    {pagedUsers.map((user: any) => {
                       const school = schools?.find((s: any) => s.id === user.school_id);
                       return (
                         <tr key={user.id} className="hover:bg-gray-50" data-testid={`user-row-${user.id}`}>
@@ -247,14 +259,14 @@ export default function UsersManagement() {
                                   {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
                                 </span>
                               </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
+                              <Link href={`/super-admin/users/${user.id}`} className="ml-4 block">
+                                <div className="text-sm font-medium text-blue-700 hover:underline">
                                   {user.first_name} {user.last_name}
                                 </div>
                                 <div className="text-sm text-gray-500">
                                   {user.email}
                                 </div>
-                              </div>
+                              </Link>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -310,6 +322,17 @@ export default function UsersManagement() {
                   </tbody>
                 </table>
               </div>
+              {filteredUsers.length > 0 && (
+                <div className="mt-4">
+                  <Pagination
+                    page={page}
+                    pageSize={pageSize}
+                    total={filteredUsers.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -7,8 +7,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, ChevronDown } from "lucide-react";
+import { Bell, ChevronDown, BellOff, User as UserIcon, Settings as SettingsIcon, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { auditApi } from "@/lib/api";
+import { Link, useLocation } from "wouter";
+import { routes } from "@/lib/routes";
 
 interface NavbarProps {
   title: string;
@@ -26,6 +30,21 @@ export function Navbar({
   onAddClick 
 }: NavbarProps) {
   const { user, logout } = useAuth();
+  const [location] = useLocation();
+  const { data: notif } = useQuery({
+    queryKey: ["/api/audit-logs", "navbar", "limit=5"],
+    queryFn: () => auditApi.getLogs({ limit: 5 }),
+  });
+  const notifications = ((notif as any[]) || []).map((log: any, idx: number) => ({
+    id: log.id || idx,
+    message: log.message || `${log.action || "Activity"} on ${log.resource || "system"}`,
+    createdAt: log.createdAt,
+  }));
+
+  // Compute dashboard path by role
+  const dashboardPath = routes.dashboardFor(user ?? undefined);
+
+  const isDashboard = location === dashboardPath;
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -79,14 +98,37 @@ export function Navbar({
                 + {addButtonText}
               </Button>
             )}
-            <div className="relative">
-              <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
-                <Bell className="h-6 w-6" />
-                <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
-                  3
-                </span>
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+                  <Bell className="h-6 w-6" />
+                  <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
+                    {notifications.length}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                {notifications.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground flex items-center gap-2">
+                    <BellOff className="h-4 w-4 text-blue-600" />
+                    No new notifications
+                  </div>
+                ) : (
+                  <div className="max-h-80 overflow-auto">
+                    {notifications.map((n) => (
+                      <DropdownMenuItem key={n.id} className="whitespace-normal py-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-900">{n.message}</span>
+                          {n.createdAt && (
+                            <span className="text-xs text-gray-500 mt-1">{new Date(n.createdAt).toLocaleString()}</span>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center" data-testid="button-user-menu">
@@ -103,9 +145,20 @@ export function Navbar({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem data-testid="menu-profile">Profile</DropdownMenuItem>
-                <DropdownMenuItem data-testid="menu-settings">Settings</DropdownMenuItem>
-                <DropdownMenuItem onClick={logout} data-testid="menu-logout">
+                <DropdownMenuItem asChild data-testid="menu-profile">
+                  <Link href={routes.profile()} className="flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-blue-600" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild data-testid="menu-settings">
+                  <Link href={routes.settings()} className="flex items-center gap-2">
+                    <SettingsIcon className="w-4 h-4 text-blue-600" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={logout} data-testid="menu-logout" className="flex items-center gap-2">
+                  <LogOut className="w-4 h-4 text-red-600" />
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>

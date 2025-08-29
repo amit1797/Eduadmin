@@ -8,15 +8,15 @@ Production: https://your-domain.com/api
 
 ## Authentication
 
-All protected endpoints require a JWT token in the Authorization header:
+All protected endpoints require a JWT access token in the Authorization header:
 ```
-Authorization: Bearer <jwt_token>
+Authorization: Bearer <access_token>
 ```
 
 ### Authentication Endpoints
 
 #### POST /auth/login
-Authenticate user and receive JWT token.
+Authenticate user and receive JWT tokens.
 
 **Request Body:**
 ```json
@@ -30,17 +30,22 @@ Authenticate user and receive JWT token.
 **Response:**
 ```json
 {
-  "token": "jwt_token_string",
+  "token": "access_token_string",
+  "refreshToken": "refresh_token_string",
   "user": {
-    "id": "number",
+    "id": "string",
     "email": "string",
     "firstName": "string",
     "lastName": "string",
     "role": "super_admin | school_admin | teacher | student | parent",
-    "schoolId": "number"
+    "schoolId": "string"
   }
 }
 ```
+
+Notes:
+- `token` is the short-lived access token used in the `Authorization` header.
+- `refreshToken` is a longer-lived token used to obtain new access tokens.
 
 #### GET /auth/me
 Get current authenticated user information.
@@ -48,13 +53,48 @@ Get current authenticated user information.
 **Response:**
 ```json
 {
-  "id": "number",
+  "id": "string",
   "email": "string",
   "firstName": "string",
   "lastName": "string",
   "role": "string",
-  "schoolId": "number"
+  "schoolId": "string"
 }
+```
+
+#### POST /auth/refresh
+Exchange a valid refresh token for new tokens.
+
+**Request Body:**
+```json
+{
+  "refreshToken": "string"
+}
+```
+
+**Response:**
+```json
+{
+  "accessToken": "string",
+  "refreshToken": "string",
+  "expiresIn": 900,
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "string",
+    "schoolId": "string"
+  }
+}
+```
+
+#### POST /auth/logout
+Invalidate user session server-side (stateless logging). Returns no content.
+
+**Response:**
+```
+204 No Content
 ```
 
 ## Super Admin Endpoints

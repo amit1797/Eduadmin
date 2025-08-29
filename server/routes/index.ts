@@ -10,11 +10,15 @@ import { subjectRouter } from "./modules/subjects";
 import { classSubjectRouter } from "./modules/classSubjects";
 import { eventRouter } from "./modules/events";
 import { auditRouter } from "./modules/audit";
+import { uploadRouter } from "./modules/uploads";
+import { onboardingDraftsRouter } from "./modules/onboardingDrafts";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Mount modular routers with base paths
   app.use("/api/auth", authRouter);
   app.use("/api/super-admin", superAdminRouter);
+  app.use("/api/uploads", uploadRouter);
+  app.use("/api", onboardingDraftsRouter);
   app.use("/api/schools/:schoolId", studentRouter);
   app.use("/api/schools/:schoolId", teacherRouter);
   app.use("/api/schools/:schoolId", classRouter);

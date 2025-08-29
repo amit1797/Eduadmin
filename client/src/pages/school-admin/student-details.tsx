@@ -1,8 +1,7 @@
-import { useMemo } from "react";
-import { Link, useRoute } from "wouter";
+import { useMemo, useState } from "react";
+import { useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Navbar } from "@/components/layout/navbar";
-import { Sidebar } from "@/components/layout/sidebar";
+import { PageLayout } from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,8 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { schoolApi } from "@/lib/api";
-import { Mail, Phone, Calendar, MapPin, ArrowLeft } from "lucide-react";
+import { schoolApi, attendanceApi } from "@/lib/api";
+import { Mail, Phone, Calendar, MapPin, Users, GraduationCap } from "lucide-react";
 
 export default function StudentDetails() {
   const { user } = useAuth();
@@ -28,67 +27,64 @@ export default function StudentDetails() {
   // Fetch related details
   const { data: attendanceData } = useQuery({
     queryKey: ["/api/schools", schoolId, "students", studentId, "attendance"],
-    queryFn: () => (schoolId && studentId ? schoolApi.getStudentAttendance(schoolId, studentId) : Promise.resolve(null)),
+    queryFn: () => (schoolId && studentId ? attendanceApi.getStudentAttendance(schoolId, studentId) : Promise.resolve(null)),
     enabled: !!schoolId && !!studentId,
   });
 
+  // Fees API not available yet; keep placeholder via local fallback
   const { data: feesData } = useQuery({
     queryKey: ["/api/schools", schoolId, "students", studentId, "fees"],
-    queryFn: () => (schoolId && studentId ? schoolApi.getStudentFees(schoolId, studentId) : Promise.resolve(null)),
-    enabled: !!schoolId && !!studentId,
+    queryFn: () => Promise.resolve(null as any),
+    enabled: false,
   });
 
+  // Documents API not available yet; keep placeholder via local fallback
   const { data: documentsData } = useQuery({
     queryKey: ["/api/schools", schoolId, "students", studentId, "documents"],
-    queryFn: () => (schoolId && studentId ? schoolApi.getStudentDocuments(schoolId, studentId) : Promise.resolve([])),
-    enabled: !!schoolId && !!studentId,
+    queryFn: () => Promise.resolve([] as any[]),
+    enabled: false,
   });
+
+  // Tabs state (must be declared before any early returns)
+  const [activeTab, setActiveTab] = useState<string>("academic");
+  const tabLabels: Record<string, string> = {
+    academic: "Academic",
+    attendance: "Attendance",
+    fees: "Fees",
+    documents: "Documents",
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar title="Student Details" subtitle="Sunrise Public School" />
-        <div className="flex">
-          <Sidebar userRole={user?.role || ""} schoolId={schoolId} />
-          <div className="flex-1 p-6">
-            <Card>
-              <CardContent className="p-6 space-y-4">
-                <Skeleton className="h-8 w-1/3" />
-                <div className="flex items-center space-x-4">
-                  <Skeleton className="h-16 w-16 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-5 w-48" />
-                    <Skeleton className="h-4 w-60" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[...Array(6)].map((_, i) => (
-                    <Skeleton key={i} className="h-12" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+      <PageLayout title="Student Details" subtitle="Sunrise Public School" sidebar={{ userRole: user?.role || "", schoolId }}>
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <Skeleton className="h-8 w-1/3" />
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-4 w-60" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-12" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </PageLayout>
     );
   }
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar title="Student Details" subtitle="Sunrise Public School" />
-        <div className="flex">
-          <Sidebar userRole={user?.role || ""} schoolId={schoolId} />
-          <div className="flex-1 p-6">
-            <Card>
-              <CardContent className="p-10 text-center text-gray-500">
-                Student not found.
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+      <PageLayout title="Student Details" subtitle="Sunrise Public School" sidebar={{ userRole: user?.role || "", schoolId }}>
+        <Card>
+          <CardContent className="p-10 text-center text-gray-500">Student not found.</CardContent>
+        </Card>
+      </PageLayout>
     );
   }
 
@@ -159,19 +155,16 @@ export default function StudentDetails() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar title="Student Profile" subtitle="Sunrise Public School" />
-      <div className="flex">
-        <Sidebar userRole={user?.role || ""} schoolId={schoolId} />
-        <div className="flex-1 p-6 space-y-6">
-          <div className="flex items-center text-sm text-gray-500">
-            <Link href={`/${schoolId}/admin/students`}>
-              <span className="flex items-center cursor-pointer hover:text-gray-700">
-                <ArrowLeft className="w-4 h-4 mr-1" /> Back
-              </span>
-            </Link>
-          </div>
-
+    <PageLayout
+      title="Student Profile"
+      subtitle="Sunrise Public School"
+      sidebar={{ userRole: user?.role || "", schoolId }}
+      breadcrumbs={{
+        labelMap: studentId ? { [studentId]: fullName } : undefined,
+        extra: [{ label: tabLabels[activeTab] }],
+      }}
+    >
+      <div className="space-y-6">
           {/* Header Overview */}
           <Card>
             <CardContent className="p-6">
@@ -200,7 +193,7 @@ export default function StudentDetails() {
                     <div className="flex items-center space-x-2"><Mail className="w-4 h-4 text-gray-400" /><span>{student.user.email}</span></div>
                     <div className="flex items-center space-x-2"><Phone className="w-4 h-4 text-gray-400" /><span>{student.user.phone || "+1 234-567-8901"}</span></div>
                     <div className="flex items-center space-x-2"><Calendar className="w-4 h-4 text-gray-400" /><span>DOB: {dob}</span></div>
-                    <div className="flex items-center space-x-2"><span className="text-gray-400">👪</span><span>{parentName}</span></div>
+                    <div className="flex items-center space-x-2"><Users className="w-4 h-4 text-gray-400" /><span>{parentName}</span></div>
                     <div className="flex items-center space-x-2"><Phone className="w-4 h-4 text-gray-400" /><span>Parent Phone: {parentPhone}</span></div>
                     <div className="flex items-center space-x-2"><MapPin className="w-4 h-4 text-gray-400" /><span>{address}</span></div>
                   </div>
@@ -209,7 +202,7 @@ export default function StudentDetails() {
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="academic">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="academic">Academic</TabsTrigger>
               <TabsTrigger value="attendance">Attendance</TabsTrigger>
@@ -468,9 +461,8 @@ export default function StudentDetails() {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

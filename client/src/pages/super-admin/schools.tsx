@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+// Dialog removed in favor of dedicated details page route
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { superAdminApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,6 +15,7 @@ import { queryClient } from "@/lib/queryClient";
 import { Building2, Search, Plus, Edit, Eye, Trash2, Calendar, Users, DollarSign } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination } from "@/components/common/Pagination";
 
 export default function SchoolsPage() {
   const { user } = useAuth();
@@ -22,8 +23,9 @@ export default function SchoolsPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedSchool, setSelectedSchool] = useState<any>(null);
-  const [showDetails, setShowDetails] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  // Inline details dialog removed; we navigate to details page now
 
   const { data: schools, isLoading } = useQuery({
     queryKey: ["/api/super-admin/schools"],
@@ -31,7 +33,7 @@ export default function SchoolsPage() {
   });
 
   const deleteSchoolMutation = useMutation({
-    mutationFn: (schoolId: number) => superAdminApi.deleteSchool(schoolId),
+    mutationFn: (schoolId: string) => superAdminApi.deleteSchool(schoolId),
     onSuccess: () => {
       toast({ title: "School deleted successfully" });
       queryClient.invalidateQueries({ queryKey: ["/api/super-admin/schools"] });
@@ -48,15 +50,21 @@ export default function SchoolsPage() {
     return matchesSearch && matchesStatus;
   }) || [];
 
-  const handleDeleteSchool = (schoolId: number) => {
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const startIdx = (page - 1) * pageSize;
+  const pagedSchools = filteredSchools.slice(startIdx, startIdx + pageSize);
+
+  const handleDeleteSchool = (schoolId: string) => {
     if (window.confirm("Are you sure you want to delete this school? This action cannot be undone.")) {
       deleteSchoolMutation.mutate(schoolId);
     }
   };
 
   const viewSchoolDetails = (school: any) => {
-    setSelectedSchool(school);
-    setShowDetails(true);
+    setLocation(`/super-admin/schools/${school.id}`);
   };
 
   if (isLoading) {
@@ -160,7 +168,11 @@ export default function SchoolsPage() {
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button className="bg-blue-600 hover:bg-blue-700" data-testid="button-onboard-school">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700" 
+                  data-testid="button-onboard-school"
+                  onClick={() => setLocation("/super-admin/school-onboarding")}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Onboard School
                 </Button>
@@ -174,7 +186,7 @@ export default function SchoolsPage() {
               <CardTitle>Schools ({filteredSchools.length})</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="overflow-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -196,7 +208,7 @@ export default function SchoolsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredSchools.map((school: any) => (
+                    {pagedSchools.map((school: any) => (
                       <tr key={school.id} className="hover:bg-gray-50" data-testid={`school-row-${school.id}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -254,7 +266,7 @@ export default function SchoolsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDeleteSchool(school.id)}
+                              onClick={() => handleDeleteSchool(String(school.id))}
                               className="text-red-600 hover:text-red-700"
                               data-testid={`button-delete-${school.id}`}
                             >
@@ -276,61 +288,21 @@ export default function SchoolsPage() {
                   </tbody>
                 </table>
               </div>
+              {filteredSchools.length > 0 && (
+                <div className="mt-4">
+                  <Pagination
+                    page={page}
+                    pageSize={pageSize}
+                    total={filteredSchools.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={(sz) => { setPageSize(sz); setPage(1); }}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* School Details Dialog */}
-          <Dialog open={showDetails} onOpenChange={setShowDetails}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>School Details</DialogTitle>
-              </DialogHeader>
-              {selectedSchool && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">School Name</label>
-                      <p className="text-sm text-gray-900">{selectedSchool.name}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">School Code</label>
-                      <p className="text-sm text-gray-900">{selectedSchool.code}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Email</label>
-                      <p className="text-sm text-gray-900">{selectedSchool.email}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Phone</label>
-                      <p className="text-sm text-gray-900">{selectedSchool.phone}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-sm font-medium text-gray-500">Address</label>
-                      <p className="text-sm text-gray-900">{selectedSchool.address}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                    <div className="text-center">
-                      <Users className="h-6 w-6 mx-auto text-blue-600 mb-1" />
-                      <p className="text-sm font-medium">Students</p>
-                      <p className="text-lg font-bold">0</p>
-                    </div>
-                    <div className="text-center">
-                      <Calendar className="h-6 w-6 mx-auto text-green-600 mb-1" />
-                      <p className="text-sm font-medium">Teachers</p>
-                      <p className="text-lg font-bold">0</p>
-                    </div>
-                    <div className="text-center">
-                      <DollarSign className="h-6 w-6 mx-auto text-yellow-600 mb-1" />
-                      <p className="text-sm font-medium">Revenue</p>
-                      <p className="text-lg font-bold">$0</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
+          {/* Inline details dialog removed */}
         </div>
       </div>
     </div>

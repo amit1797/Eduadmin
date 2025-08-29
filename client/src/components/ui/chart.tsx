@@ -76,25 +76,48 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // Sanitize CSS values to prevent XSS
+  const sanitizeCSS = (value: string): string => {
+    // Only allow valid CSS color values and remove potentially dangerous content
+    const colorRegex = /^(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\)|hsl\([^)]+\)|hsla\([^)]+\)|[a-zA-Z]+)$/
+    return colorRegex.test(value.trim()) ? value.trim() : ''
+  }
+
+  const sanitizeId = (id: string): string => {
+    // Only allow alphanumeric characters and hyphens for CSS selectors
+    return id.replace(/[^a-zA-Z0-9-]/g, '')
+  }
+
+  const sanitizedId = sanitizeId(id)
+
+  const cssContent = Object.entries(THEMES)
+    .map(([theme, prefix]) => {
+      const sanitizedPrefix = prefix.replace(/[^a-zA-Z0-9-.\s]/g, '')
+      const colorRules = colorConfig
+        .map(([key, itemConfig]) => {
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+            itemConfig.color
+          
+          if (!color) return null
+          
+          const sanitizedColor = sanitizeCSS(color)
+          const sanitizedKey = key.replace(/[^a-zA-Z0-9-]/g, '')
+          
+          return sanitizedColor ? `  --color-${sanitizedKey}: ${sanitizedColor};` : null
+        })
+        .filter(Boolean)
+        .join("\n")
+
+      return colorRules ? `${sanitizedPrefix} [data-chart="${sanitizedId}"] {\n${colorRules}\n}` : ''
+    })
+    .filter(Boolean)
+    .join("\n")
+
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join("\n")}
-}
-`
-          )
-          .join("\n"),
+        __html: cssContent,
       }}
     />
   )

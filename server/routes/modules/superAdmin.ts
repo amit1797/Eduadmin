@@ -39,6 +39,34 @@ export const superAdminRouter = Router();
     }
   });
 
+  // Get a single user by ID for profile/details view
+  superAdminRouter.get("/users/:id", authenticateToken, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const u = await storage.getUser(id);
+      if (!u) return res.status(404).json({ message: "User not found" });
+
+      // Map to snake_case fields expected by client
+      const result = {
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        first_name: u.firstName,
+        last_name: u.lastName,
+        phone: u.phone,
+        role: u.role,
+        school_id: u.schoolId,
+        is_active: u.status === "active",
+        last_login: null as any,
+      };
+
+      res.json(result);
+    } catch (error) {
+      console.error("Get user (super-admin) error:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   superAdminRouter.post("/users", authenticateToken, requireRole(["super_admin"]), async (req: AuthRequest, res) => {
     try {
       const body = req.body;
@@ -138,20 +166,37 @@ export const superAdminRouter = Router();
     }
   });
 
+  // Get single school (for resuming onboarding drafts)
+  superAdminRouter.get("/schools/:id", authenticateToken, requireRole(["super_admin"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const school = await storage.getSchool(id);
+      if (!school) return res.status(404).json({ message: "School not found" });
+      res.json(school);
+    } catch (error) {
+      console.error("Get school error:", error);
+      res.status(500).json({ message: "Failed to fetch school" });
+    }
+  });
+
   superAdminRouter.post("/onboard-school", authenticateToken, requireRole(["super_admin"]), async (req: AuthRequest, res) => {
     try {
-      const { basicDetails, documents, modules, configuration, dataUpload } = req.body;
+      const { schoolId, basicDetails, documents, modules, configuration, dataUpload } = req.body as any;
       
-      // Create school record (only allowed fields per schema)
-      const school = await storage.createSchool({
+      // Either update existing draft school or create a new one
+      const toPersist = {
         name: basicDetails.name,
         code: basicDetails.code,
         address: basicDetails.address,
         phone: basicDetails.phone,
         email: basicDetails.email,
         website: basicDetails.website,
-        status: "active"
-      });
+        status: "active" as const,
+      };
+
+      const school = schoolId
+        ? await storage.updateSchool(schoolId, toPersist)
+        : await storage.createSchool(toPersist as any);
 
       // Create principal user account
       const hashedPassword = hashPassword("principal123"); // Default password
@@ -201,6 +246,7 @@ export const superAdminRouter = Router();
       res.status(500).json({ message: "Failed to onboard school" });
     }
   });
+
 
   superAdminRouter.post("/schools", authenticateToken, requireRole(["super_admin"]), async (req: AuthRequest, res) => {
     try {

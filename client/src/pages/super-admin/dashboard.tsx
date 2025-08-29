@@ -1,26 +1,56 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { StatsCard } from "@/components/ui/stats-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { superAdminApi } from "@/lib/api";
+import { superAdminApi, onboardingDraftsApi } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
-import { Building2, CheckCircle, DollarSign, AlertCircle } from "lucide-react";
+import { Building2, CheckCircle, DollarSign, AlertCircle, FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SuperAdminDashboard() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/super-admin/stats"],
-    queryFn: () => superAdminApi.getStats()
+    queryFn: () => superAdminApi.getStats(),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
+
+  // Show success toast if redirected after onboarding completion
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("onboarded") === "1") {
+        toast({ title: "School onboarded successfully!" });
+        url.searchParams.delete("onboarded");
+        const newPath = url.pathname + (url.search ? "?" + url.searchParams.toString() : "");
+        window.history.replaceState({}, "", newPath);
+      }
+    } catch {}
+  }, []);
 
   const { data: schools, isLoading: schoolsLoading } = useQuery({
     queryKey: ["/api/super-admin/schools"],
-    queryFn: () => superAdminApi.getSchools()
+    queryFn: () => superAdminApi.getSchools(),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  // Draft schools
+  const { data: drafts = [], isLoading: draftsLoading, refetch: refetchDrafts } = useQuery({
+    queryKey: ["/api/onboarding-drafts"],
+    queryFn: () => onboardingDraftsApi.list(),
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   if (statsLoading) {
@@ -44,10 +74,10 @@ export default function SuperAdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar 
-        title="EduManage Pro"
+        title="Eduadmin Pro"
         showAddButton
         addButtonText="Add School"
-        onAddClick={() => {/* TODO: Implement add school */}}
+        onAddClick={() => setLocation("/super-admin/school-onboarding")}
       />
       
       <div className="flex">
@@ -84,6 +114,22 @@ export default function SuperAdminDashboard() {
               iconColor="text-red-600"
               trend={{ value: "-3 from yesterday", isPositive: true }}
             />
+            {/* Draft Schools quick card */}
+            <div
+              className="cursor-pointer"
+              onClick={() => {
+                const el = document.getElementById("drafts-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              <StatsCard
+                title="Draft Schools"
+                value={drafts?.length || 0}
+                icon={FileText}
+                iconColor="text-orange-600"
+                trend={{ value: draftsLoading ? "Loading..." : `${drafts.length} drafts`, isPositive: true }}
+              />
+            </div>
           </div>
 
           {/* Schools Table */}
@@ -91,7 +137,11 @@ export default function SuperAdminDashboard() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Recent Schools</CardTitle>
-                <Button className="bg-blue-600 hover:bg-blue-700" data-testid="button-add-school">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700" 
+                  data-testid="button-add-school"
+                  onClick={() => setLocation("/super-admin/school-onboarding")}
+                >
                   Add School
                 </Button>
               </div>
@@ -148,19 +198,38 @@ export default function SuperAdminDashboard() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <Badge 
                               variant={school.status === "active" ? "default" : "secondary"}
-                              className={school.status === "active" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
+                              className={
+                                school.status === "active"
+                                  ? "bg-green-100 text-green-800"
+                                  : school.status === "pending"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }
                             >
                               {school.status}
                             </Badge>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
-                              <button className="text-blue-600 hover:text-blue-900" data-testid={`button-view-${school.id}`}>
-                                View
-                              </button>
-                              <button className="text-gray-600 hover:text-gray-900" data-testid={`button-edit-${school.id}`}>
-                                Edit
-                              </button>
+                              {school.status === "pending" ? (
+                                <Button
+                                  variant="outline"
+                                  className="text-orange-700 border-orange-300 hover:bg-orange-50"
+                                  onClick={() => setLocation(`/super-admin/school-onboarding?schoolId=${school.id}`)}
+                                  data-testid={`button-continue-${school.id}`}
+                                >
+                                  Continue
+                                </Button>
+                              ) : (
+                                <>
+                                  <button className="text-blue-600 hover:text-blue-900" data-testid={`button-view-${school.id}`}>
+                                    View
+                                  </button>
+                                  <button className="text-gray-600 hover:text-gray-900" data-testid={`button-edit-${school.id}`}>
+                                    Edit
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -170,6 +239,105 @@ export default function SuperAdminDashboard() {
                           <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                             No schools found
                           </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Draft Schools Table */}
+          <Card id="drafts-section" className="mt-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Draft Schools</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{draftsLoading ? "Loading..." : `${drafts.length} drafts`}</Badge>
+                  <Button 
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setLocation("/super-admin/school-onboarding")}
+                  >
+                    New Draft
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {draftsLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <Skeleton key={i} className="h-16" />
+                  ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">School Code</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Step</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(drafts || []).map((d: any) => (
+                        <tr key={d.id} className="hover:bg-gray-50" data-testid={`draft-row-${d.id}`}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{d.schoolCode || "—"}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{d.step ?? 1}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge 
+                              variant={d.status === "finalized" ? "default" : "secondary"}
+                              className={
+                                d.status === "finalized"
+                                  ? "bg-green-100 text-green-800"
+                                  : d.status === "archived"
+                                  ? "bg-gray-100 text-gray-800"
+                                  : "bg-orange-100 text-orange-800"
+                              }
+                            >
+                              {d.status}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(d.updatedAt).toLocaleString()}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex space-x-2">
+                              {d.status !== "archived" && (
+                                <Button
+                                  variant="outline"
+                                  className="text-orange-700 border-orange-300 hover:bg-orange-50"
+                                  onClick={() => setLocation(`/super-admin/school-onboarding?draftId=${d.id}`)}
+                                  data-testid={`button-continue-draft-${d.id}`}
+                                >
+                                  Continue
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                className="text-red-700 border-red-300 hover:bg-red-50"
+                                onClick={async () => {
+                                  try {
+                                    await onboardingDraftsApi.archive(d.id);
+                                    toast({ title: "Draft archived" });
+                                    refetchDrafts();
+                                  } catch (err: any) {
+                                    toast({ title: "Failed to archive draft", description: err?.message || "", variant: "destructive" });
+                                  }
+                                }}
+                                data-testid={`button-delete-draft-${d.id}`}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!drafts || drafts.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-4 text-center text-gray-500">No drafts found</td>
                         </tr>
                       )}
                     </tbody>

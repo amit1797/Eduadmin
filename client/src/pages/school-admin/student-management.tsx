@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Navbar } from "@/components/layout/navbar";
-import { Sidebar } from "@/components/layout/sidebar";
+import { PageLayout } from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { z } from "zod";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,7 +17,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { schoolApi } from "@/lib/api";
+import { routes } from "@/lib/routes";
 import { useAuth } from "@/hooks/use-auth";
+import { useCRUD } from "@/hooks/useCRUD";
+import { ModalForm } from "@/components/common/FormComponents";
+import { createStudentSchema } from "@/components/common/FormComponents";
+import { type Student } from "@/types";
 import { Search, Filter, Grid, Download, Upload } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -27,10 +32,40 @@ export default function StudentManagement() {
   const [selectedClass, setSelectedClass] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
 
-  const { data: students, isLoading: studentsLoading } = useQuery({
-    queryKey: ["/api/schools", user?.schoolId, "students"],
-    queryFn: () => user?.schoolId ? schoolApi.getStudents(user.schoolId) : null,
-    enabled: !!user?.schoolId
+  // CRUD integration (merged from enhanced-students.tsx)
+  const {
+    items: students,
+    isLoading: studentsLoading,
+    isModalOpen,
+    modalMode,
+    selectedItem,
+    openCreateModal,
+    openEditModal,
+    closeModal,
+    handleCreate,
+    handleUpdate,
+    handleDelete,
+  } = useCRUD<Student>({
+    queryKey: ['students', user?.schoolId || ''],
+    fetchFn: async () => {
+      if (!user?.schoolId) return [] as Student[];
+      const res: any = await schoolApi.getStudents(user.schoolId);
+      return (Array.isArray(res) ? res : (res.students || [])) as Student[];
+    },
+    createFn: async (data) => {
+      if (!user?.schoolId) throw new Error('School ID missing');
+      const res: any = await schoolApi.createStudent(user.schoolId, data);
+      return (res?.student ?? res) as Student;
+    },
+    updateFn: async (id, data) => {
+      if (!user?.schoolId) throw new Error('School ID missing');
+      const res: any = await schoolApi.updateStudent(user.schoolId, id, data);
+      return (res?.student ?? res) as Student;
+    },
+    deleteFn: async (id) => {
+      if (!user?.schoolId) throw new Error('School ID missing');
+      await schoolApi.deleteStudent(user.schoolId, id);
+    }
   });
 
   const { data: classes } = useQuery({
@@ -39,7 +74,7 @@ export default function StudentManagement() {
     enabled: !!user?.schoolId
   });
 
-  const filteredStudents = students?.filter((student: any) => {
+  const filteredStudents = (students || []).filter((student: any) => {
     const matchesSearch = !searchTerm || 
       student.user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,54 +89,46 @@ export default function StudentManagement() {
 
   if (studentsLoading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar 
-          title="Student Management" 
-          subtitle="Sunrise Public School"
-          showAddButton
-          addButtonText="Add Student"
-        />
-        <div className="flex">
-          <Sidebar userRole={user?.role || ""} schoolId={user?.schoolId} />
-          <div className="flex-1 p-6">
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <Skeleton className="h-10 w-full" />
-                  <div className="flex space-x-4">
-                    <Skeleton className="h-10 w-40" />
-                    <Skeleton className="h-10 w-40" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent>
-                <div className="space-y-4">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <Skeleton key={i} className="h-16" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
+      <PageLayout
+        title="Student Management"
+        subtitle="Sunrise Public School"
+        showAddButton
+        addButtonText="Add Student"
+        sidebar={{ userRole: user?.role || "", schoolId: user?.schoolId }}
+      >
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <div className="flex space-x-4">
+                <Skeleton className="h-10 w-40" />
+                <Skeleton className="h-10 w-40" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map(i => (
+                <Skeleton key={i} className="h-16" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar 
-        title="Student Management" 
-        subtitle="Sunrise Public School"
-        showAddButton
-        addButtonText="Add Student"
-        onAddClick={() => {/* TODO: Implement add student */}}
-      />
-      <div className="flex">
-        <Sidebar userRole={user?.role || ""} schoolId={user?.schoolId} />
-        <div className="flex-1 p-6">
+    <PageLayout
+      title="Student Management"
+      subtitle="Sunrise Public School"
+      showAddButton
+      addButtonText="Add Student"
+      onAddClick={openCreateModal}
+      sidebar={{ userRole: user?.role || "", schoolId: user?.schoolId }}
+    >
           {/* Filters and Search */}
           <Card className="mb-6">
             <CardContent className="p-6">
@@ -249,7 +276,7 @@ export default function StudentManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <Link href={`/${user?.schoolId}/admin/students/${student.id}`}>
+                          <Link href={user ? routes.schoolAdmin(user.schoolId).studentDetails(student.id) : "#"}>
                             <span 
                               className="text-blue-600 hover:text-blue-900 cursor-pointer"
                               data-testid={`button-view-${student.id}`}
@@ -260,12 +287,14 @@ export default function StudentManagement() {
                           <button 
                             className="text-gray-600 hover:text-gray-900"
                             data-testid={`button-edit-${student.id}`}
+                            onClick={() => openEditModal(student)}
                           >
                             Edit
                           </button>
                           <button 
                             className="text-red-600 hover:text-red-900"
                             data-testid={`button-delete-${student.id}`}
+                            onClick={() => handleDelete(student.id)}
                           >
                             Delete
                           </button>
@@ -309,8 +338,88 @@ export default function StudentManagement() {
             )}
           </CardContent>
         </Card>
-        </div>
-      </div>
-    </div>
+    {/* Create / Edit Modals */}
+    {modalMode === 'create' ? (
+      <ModalForm
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title="Add New Student"
+        schema={createStudentSchema}
+        onSubmit={handleCreate}
+        fields={[
+          { name: 'userData.firstName', label: 'First Name', type: 'text', required: true, placeholder: 'Enter first name' },
+          { name: 'userData.lastName', label: 'Last Name', type: 'text', required: true, placeholder: 'Enter last name' },
+          { name: 'userData.email', label: 'Email', type: 'email', required: true, placeholder: 'Enter email address' },
+          { name: 'userData.username', label: 'Username', type: 'text', required: true, placeholder: 'Enter username' },
+          { name: 'userData.password', label: 'Password', type: 'password', required: true, placeholder: 'Enter password' },
+          { name: 'userData.phone', label: 'Phone', type: 'text', placeholder: 'Enter phone number' },
+          { name: 'studentData.studentId', label: 'Student ID', type: 'text', required: true, placeholder: 'Enter student ID' },
+          { name: 'studentData.dateOfBirth', label: 'Date of Birth', type: 'date' },
+          { name: 'studentData.gender', label: 'Gender', type: 'select', options: [
+            { value: 'male', label: 'Male' },
+            { value: 'female', label: 'Female' },
+            { value: 'other', label: 'Other' }
+          ]},
+          { name: 'studentData.bloodGroup', label: 'Blood Group', type: 'select', options: [
+            { value: 'A+', label: 'A+' },{ value: 'A-', label: 'A-' },{ value: 'B+', label: 'B+' },{ value: 'B-', label: 'B-' },
+            { value: 'AB+', label: 'AB+' },{ value: 'AB-', label: 'AB-' },{ value: 'O+', label: 'O+' },{ value: 'O-', label: 'O-' }
+          ]},
+          { name: 'studentData.address', label: 'Address', type: 'textarea', placeholder: 'Enter address' },
+          { name: 'studentData.emergencyContact', label: 'Emergency Contact', type: 'text', placeholder: 'Enter emergency contact number' },
+        ]}
+        submitText="Create Student"
+      />
+    ) : (
+      <ModalForm
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title="Edit Student"
+        schema={createStudentSchema.extend({
+          userData: createStudentSchema.shape.userData.extend({ password: z.string().optional() })
+        })}
+        onSubmit={handleUpdate}
+        defaultValues={selectedItem ? {
+          userData: {
+            firstName: selectedItem.user?.firstName || '',
+            lastName: selectedItem.user?.lastName || '',
+            email: selectedItem.user?.email || '',
+            username: selectedItem.user?.username || '',
+            phone: selectedItem.user?.phone || '',
+            role: 'student' as const,
+          },
+          studentData: {
+            studentId: selectedItem.studentId || '',
+            dateOfBirth: selectedItem.dateOfBirth || undefined,
+            gender: (selectedItem.gender as 'male'|'female'|'other'|undefined) || undefined,
+            bloodGroup: (selectedItem.bloodGroup as 'A+'|'A-'|'B+'|'B-'|'AB+'|'AB-'|'O+'|'O-'|undefined) || undefined,
+            address: selectedItem.address || '',
+            emergencyContact: selectedItem.emergencyContact || ''
+          }
+        } : undefined}
+        fields={[
+          { name: 'userData.firstName', label: 'First Name', type: 'text', required: true, placeholder: 'Enter first name' },
+          { name: 'userData.lastName', label: 'Last Name', type: 'text', required: true, placeholder: 'Enter last name' },
+          { name: 'userData.email', label: 'Email', type: 'email', required: true, placeholder: 'Enter email address' },
+          { name: 'userData.username', label: 'Username', type: 'text', required: true, placeholder: 'Enter username' },
+          { name: 'userData.password', label: 'Password', type: 'password', required: false, placeholder: 'Leave blank to keep unchanged' },
+          { name: 'userData.phone', label: 'Phone', type: 'text', placeholder: 'Enter phone number' },
+          { name: 'studentData.studentId', label: 'Student ID', type: 'text', required: true, placeholder: 'Enter student ID' },
+          { name: 'studentData.dateOfBirth', label: 'Date of Birth', type: 'date' },
+          { name: 'studentData.gender', label: 'Gender', type: 'select', options: [
+            { value: 'male', label: 'Male' },
+            { value: 'female', label: 'Female' },
+            { value: 'other', label: 'Other' }
+          ]},
+          { name: 'studentData.bloodGroup', label: 'Blood Group', type: 'select', options: [
+            { value: 'A+', label: 'A+' },{ value: 'A-', label: 'A-' },{ value: 'B+', label: 'B+' },{ value: 'B-', label: 'B-' },
+            { value: 'AB+', label: 'AB+' },{ value: 'AB-', label: 'AB-' },{ value: 'O+', label: 'O+' },{ value: 'O-', label: 'O-' }
+          ]},
+          { name: 'studentData.address', label: 'Address', type: 'textarea', placeholder: 'Enter address' },
+          { name: 'studentData.emergencyContact', label: 'Emergency Contact', type: 'text', placeholder: 'Enter emergency contact number' },
+        ]}
+        submitText="Update Student"
+      />
+    )}
+    </PageLayout>
   );
 }

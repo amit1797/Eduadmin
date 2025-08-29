@@ -10,3 +10,4 @@ export * as events from "./events";
 export * as audit from "./audit";
 export * as rbac from "./rbac";
 export * as stats from "./stats";
+export * as onboardingDrafts from "./onboardingDrafts";

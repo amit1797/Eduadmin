@@ -21,6 +21,11 @@ export const moduleEnum = pgEnum("module", [
 
 export const permissionEnum = pgEnum("permission", ["create", "read", "update", "delete"]);
 
+// Onboarding Draft Enums
+export const onboardingDraftStatusEnum = pgEnum("onboarding_draft_status", [
+  "active", "finalized", "archived", "error"
+]);
+
 // Core Tables
 export const schools = pgTable("schools", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -32,6 +37,22 @@ export const schools = pgTable("schools", {
   website: text("website"),
   logo: text("logo"),
   status: statusEnum("status").default("active"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
+});
+
+// Onboarding Drafts (Hybrid Approach)
+export const onboardingDrafts = pgTable("onboarding_drafts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  status: onboardingDraftStatusEnum("status").default("active"),
+  createdBy: varchar("created_by").references(() => users.id),
+  schoolCode: varchar("school_code", { length: 50 }),
+  step: integer("step").default(1),
+  data: text("data"), // JSON dump of draft payload
+  files: text("files"), // JSON map of file keys/urls
+  error: text("error"),
+  expiresAt: timestamp("expires_at"),
+  finalizedAt: timestamp("finalized_at"),
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
   updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`)
 });
@@ -307,6 +328,14 @@ export const insertClassSubjectSchema = createInsertSchema(classSubjects).omit({
   createdAt: true
 });
 
+// Onboarding Draft insert schema
+export const insertOnboardingDraftSchema = createInsertSchema(onboardingDrafts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  finalizedAt: true,
+});
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -334,6 +363,9 @@ export type Attendance = typeof attendance.$inferSelect;
 
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
+
+export type OnboardingDraft = typeof onboardingDrafts.$inferSelect;
+export type InsertOnboardingDraft = z.infer<typeof insertOnboardingDraftSchema>;
 
 export type LoginRequest = z.infer<typeof loginSchema>;
 

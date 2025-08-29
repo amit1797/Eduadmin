@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "wouter";
 
 interface StatsCardProps {
   title: string;
@@ -12,6 +13,7 @@ interface StatsCardProps {
     isPositive: boolean;
   };
   className?: string;
+  href?: string;
 }
 
 export function StatsCard({ 
@@ -20,12 +22,17 @@ export function StatsCard({
   icon: Icon, 
   iconColor = "text-blue-600",
   trend,
-  className 
+  className,
+  href,
 }: StatsCardProps) {
   const bgColor = iconColor.replace("text-", "bg-").replace("-600", "-50");
 
-  return (
-    <Card className={cn("transition-all duration-300 hover:shadow-md hover:-translate-y-1", className)}>
+  const card = (
+    <Card className={cn(
+      "transition-all duration-300 hover:shadow-md hover:-translate-y-1",
+      href && "cursor-pointer",
+      className
+    )}>
       <CardContent className="p-6">
         <div className="flex items-center">
           <div className={cn("p-3 rounded-lg", bgColor)}>
@@ -54,4 +61,14 @@ export function StatsCard({
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block no-underline" aria-label={`${title} - navigate`}>
+        {card}
+      </Link>
+    );
+  }
+
+  return card;
 }
